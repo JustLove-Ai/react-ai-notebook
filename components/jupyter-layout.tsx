@@ -3,11 +3,12 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ChevronRight, ChevronDown, File, Folder, Plus, X, Edit2 } from 'lucide-react'
+import { ChevronRight, ChevronDown, File, Folder, Plus, X, Edit2, Trash2 } from 'lucide-react'
 import { ThemeToggle } from './theme-toggle'
-import { createNotebook, updateNotebook, createTab, updateTab } from '@/lib/actions/notebooks'
+import { createNotebook, updateNotebook, createTab, updateTab, deleteNotebook, deleteTab } from '@/lib/actions/notebooks'
 import { Button } from './ui/button'
 import { NotebookEditor } from './notebook-editor'
+import { DeleteConfirmationDialog } from './delete-confirmation-dialog'
 
 interface NotebookTab {
   id: string
@@ -37,16 +38,35 @@ export function JupyterLayout({ notebooks: initialNotebooks, currentNotebook, ch
   const [editingTabId, setEditingTabId] = useState<string | null>(null)
   const [editingTitle, setEditingTitle] = useState('')
   const [isCreating, setIsCreating] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteAction, setDeleteAction] = useState<{ type: 'notebook' | 'tab', id: string } | null>(null)
   const router = useRouter()
 
   const handleCreateTab = async () => {
     if (!currentNotebook) return
     setIsCreating(true)
     try {
-      const newTab = await createTab(currentNotebook.id, 'Untitled')
-      setNotebookTabs([...notebookTabs, newTab as any])
-      setActiveTabId(newTab.id)
-      // Pure client-side update - no page refresh needed
+      // Create temp tab with client-side ID
+      const tempTab = {
+        id: `temp-${Date.now()}`,
+        title: 'Untitled',
+        order: notebookTabs.length,
+        cells: [{
+          id: `temp-cell-${Date.now()}`,
+          type: 'code' as const,
+          content: '',
+          output: null,
+          language: 'javascript',
+          order: 0
+        }]
+      }
+
+      // Optimistically add to state
+      setNotebookTabs([...notebookTabs, tempTab])
+      setActiveTabId(tempTab.id)
+
+      // Sync with server in background
+      createTab(currentNotebook.id, 'Untitled')
     } catch (error) {
       console.error('Failed to create tab:', error)
     }
@@ -127,8 +147,60 @@ export function JupyterLayout({ notebooks: initialNotebooks, currentNotebook, ch
     }
   }
 
+  const handleDeleteNotebook = (notebookId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setDeleteAction({ type: 'notebook', id: notebookId })
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteTab = (tabId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!currentNotebook) return
+    if (notebookTabs.length === 1) {
+      return // Silently ignore - we'll show better UI feedback later
+    }
+    setDeleteAction({ type: 'tab', id: tabId })
+    setDeleteDialogOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteAction) return
+
+    if (deleteAction.type === 'notebook') {
+      await deleteNotebook(deleteAction.id)
+      setNotebooks(notebooks.filter(n => n.id !== deleteAction.id))
+      if (currentNotebook?.id === deleteAction.id) {
+        router.push('/notebooks')
+      }
+    } else if (deleteAction.type === 'tab') {
+      if (!currentNotebook) return
+      // Optimistically update state first
+      const updatedTabs = notebookTabs.filter(t => t.id !== deleteAction.id)
+      setNotebookTabs(updatedTabs)
+      if (activeTabId === deleteAction.id) {
+        setActiveTabId(updatedTabs[0]?.id)
+      }
+      // Then sync with server
+      deleteTab(deleteAction.id, currentNotebook.id)
+    }
+
+    setDeleteDialogOpen(false)
+    setDeleteAction(null)
+  }
+
   return (
     <div className="h-screen flex flex-col bg-white dark:bg-black">
+      <DeleteConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={confirmDelete}
+        title={deleteAction?.type === 'notebook' ? 'Delete Notebook' : 'Delete Tab'}
+        description={
+          deleteAction?.type === 'notebook'
+            ? 'Are you sure you want to delete this notebook? All tabs and cells will be permanently deleted.'
+            : 'Are you sure you want to delete this tab? All cells will be permanently deleted.'
+        }
+      />
       {/* Top Bar */}
       <div className="h-12 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between px-4">
         <div className="flex items-center gap-2">
@@ -208,6 +280,12 @@ export function JupyterLayout({ notebooks: initialNotebooks, currentNotebook, ch
                         >
                           <Edit2 className="h-3 w-3 text-neutral-500" />
                         </button>
+                        <button
+                          onClick={(e) => handleDeleteNotebook(notebook.id, e)}
+                          className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded"
+                        >
+                          <Trash2 className="h-3 w-3 text-neutral-500" />
+                        </button>
                       </>
                     )}
                   </div>
@@ -252,13 +330,21 @@ export function JupyterLayout({ notebooks: initialNotebooks, currentNotebook, ch
                       onClick={(e) => e.stopPropagation()}
                     />
                   ) : (
-                    <span
-                      onClick={() => handleTabClick(tab.id)}
-                      onDoubleClick={(e) => startEditingTab(tab.id, tab.title, e)}
-                      className="max-w-[120px] truncate cursor-pointer"
-                    >
-                      {tab.title}
-                    </span>
+                    <>
+                      <span
+                        onClick={() => handleTabClick(tab.id)}
+                        onDoubleClick={(e) => startEditingTab(tab.id, tab.title, e)}
+                        className="max-w-[120px] truncate cursor-pointer"
+                      >
+                        {tab.title}
+                      </span>
+                      <button
+                        onClick={(e) => handleDeleteTab(tab.id, e)}
+                        className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded"
+                      >
+                        <X className="h-3 w-3 text-neutral-500" />
+                      </button>
+                    </>
                   )}
                 </div>
               ))}
