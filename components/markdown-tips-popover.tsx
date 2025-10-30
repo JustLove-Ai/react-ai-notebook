@@ -86,7 +86,7 @@ export function MarkdownTipsPopover() {
 
             <div>
               <div className="font-mono bg-neutral-100 dark:bg-neutral-800 p-1 rounded mb-1">
-                > blockquote
+                {'> blockquote'}
               </div>
               <div className="text-neutral-600 dark:text-neutral-400">Quote</div>
             </div>
