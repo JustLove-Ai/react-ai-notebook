@@ -295,13 +295,13 @@ export function JupyterLayout({ notebooks: initialNotebooks, currentNotebook, ch
               {notebookTabs.map((tab) => (
                 <div
                   key={tab.id}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm border-r border-neutral-200 dark:border-neutral-800 group ${
+                  className={`flex items-center gap-2 px-4 py-2 text-sm border-r border-neutral-200 dark:border-neutral-800 group relative ${
                     activeTabId === tab.id
-                      ? 'bg-white dark:bg-black text-black dark:text-white'
+                      ? 'bg-white dark:bg-black text-black dark:text-white border-b-2 border-b-blue-500'
                       : 'bg-neutral-50 dark:bg-neutral-900/30 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-900'
                   }`}
                 >
-                  <File className="h-4 w-4 text-orange-500 flex-shrink-0" />
+                  <File className={`h-4 w-4 flex-shrink-0 ${activeTabId === tab.id ? 'text-orange-500 fill-orange-500' : 'text-orange-500'}`} />
                   {editingTabId === tab.id ? (
                     <input
                       type="text"
