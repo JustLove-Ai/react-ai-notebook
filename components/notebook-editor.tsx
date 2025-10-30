@@ -8,8 +8,9 @@ import { CodeCell } from './code-cell'
 import { MarkdownCell } from './markdown-cell'
 import { Plus, Play, Square, RotateCw, ChevronUp, ChevronDown, Save } from 'lucide-react'
 import { createCell, updateCell, reorderCells } from '@/lib/actions/notebooks'
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { DragEndEvent } from '@dnd-kit/core'
+import { arrayMove } from '@dnd-kit/sortable'
+import { SortableCellsWrapper } from './sortable-cells-wrapper'
 
 interface NotebookTab {
   id: string
@@ -42,14 +43,6 @@ export function NotebookEditor({
   onTabsChange?: (tabs: NotebookTab[]) => void
 }) {
   const router = useRouter()
-
-  // Setup drag and drop sensors
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  )
 
   // Find the active tab or default to first tab
   const activeTab = notebook.tabs.find(t => t.id === activeTabId) || notebook.tabs[0]
@@ -331,45 +324,39 @@ export function NotebookEditor({
       {/* Notebook Content */}
       <div className="flex-1 overflow-auto">
         <div className="max-w-[1600px] mx-auto px-8">
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
+          <SortableCellsWrapper
+            cells={cells}
             onDragEnd={handleDragEnd}
-            id={`dnd-${currentTab?.id || 'default'}`}
+            tabId={currentTab?.id}
           >
-            <SortableContext
-              items={cells.map(c => c.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              {cells.map((cell) => (
-                <div key={cell.id}>
-                  {cell.type === 'code' ? (
-                    <CodeCell
-                      cell={cell}
-                      tabId={currentTab?.id || ''}
-                      notebookId={notebook.id}
-                      isSelected={selectedCellId === cell.id}
-                      onSelect={() => setSelectedCellId(cell.id)}
-                      onCellDeleted={handleCellDeleted}
-                      onCellsChanged={refreshCells}
-                      onContentChange={handleCellContentChange}
-                    />
-                  ) : (
-                    <MarkdownCell
-                      cell={cell}
-                      tabId={currentTab?.id || ''}
-                      notebookId={notebook.id}
-                      isSelected={selectedCellId === cell.id}
-                      onSelect={() => setSelectedCellId(cell.id)}
-                      onCellDeleted={handleCellDeleted}
-                      onCellsChanged={refreshCells}
-                      onContentChange={handleCellContentChange}
-                    />
-                  )}
-                </div>
-              ))}
-            </SortableContext>
-          </DndContext>
+            {cells.map((cell) => (
+              <div key={cell.id}>
+                {cell.type === 'code' ? (
+                  <CodeCell
+                    cell={cell}
+                    tabId={currentTab?.id || ''}
+                    notebookId={notebook.id}
+                    isSelected={selectedCellId === cell.id}
+                    onSelect={() => setSelectedCellId(cell.id)}
+                    onCellDeleted={handleCellDeleted}
+                    onCellsChanged={refreshCells}
+                    onContentChange={handleCellContentChange}
+                  />
+                ) : (
+                  <MarkdownCell
+                    cell={cell}
+                    tabId={currentTab?.id || ''}
+                    notebookId={notebook.id}
+                    isSelected={selectedCellId === cell.id}
+                    onSelect={() => setSelectedCellId(cell.id)}
+                    onCellDeleted={handleCellDeleted}
+                    onCellsChanged={refreshCells}
+                    onContentChange={handleCellContentChange}
+                  />
+                )}
+              </div>
+            ))}
+          </SortableCellsWrapper>
 
           {/* Click to add cell */}
           <div
