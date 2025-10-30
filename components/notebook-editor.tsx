@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { CodeCell } from './code-cell'
 import { MarkdownCell } from './markdown-cell'
 import { Plus, Play, Square, RotateCw, ChevronUp, ChevronDown, Save } from 'lucide-react'
-import { createCell } from '@/lib/actions/notebooks'
+import { createCell, updateCell } from '@/lib/actions/notebooks'
 
 interface NotebookTab {
   id: string
@@ -65,13 +65,16 @@ export function NotebookEditor({
     })
   }, [notebook.tabs])
 
-  // Update selected cell when active tab changes
+  // Update selected cell when active tab changes (but not when cells update)
   useEffect(() => {
     if (activeTab) {
       const cellsForTab = tabCells[activeTab.id] || activeTab.cells
-      setSelectedCellId(cellsForTab[0]?.id || null)
+      // Only set selected cell if there isn't one already, or if tab changed
+      if (!selectedCellId || !cellsForTab.find(c => c.id === selectedCellId)) {
+        setSelectedCellId(cellsForTab[0]?.id || null)
+      }
     }
-  }, [activeTabId, activeTab, tabCells])
+  }, [activeTabId, activeTab])  // Removed tabCells from dependencies!
 
   const currentTab = activeTab
   const cells = tabCells[activeTab?.id || ''] || []
@@ -101,18 +104,22 @@ export function NotebookEditor({
 
   const handleCellDeleted = (cellId: string) => {
     if (!currentTab) return
-    // Update cells for the current tab only
+    // Optimistically update cells
+    const updatedCells = (tabCells[currentTab.id] || [])
+      .filter(c => c.id !== cellId)
+      .map((c, idx) => ({ ...c, order: idx }))
+
     setTabCells(prev => ({
       ...prev,
-      [currentTab.id]: (prev[currentTab.id] || []).filter(c => c.id !== cellId)
+      [currentTab.id]: updatedCells
     }))
+
     if (selectedCellId === cellId) {
-      const remainingCells = (tabCells[currentTab.id] || []).filter(c => c.id !== cellId)
-      setSelectedCellId(remainingCells[0]?.id || null)
+      setSelectedCellId(updatedCells[0]?.id || null)
     }
   }
 
-  const refreshCells = () => {
+  const refreshCells = (selectCellId?: string) => {
     if (!currentTab) return
     // Refresh cells for current tab from server
     const tab = notebook.tabs.find(t => t.id === currentTab.id)
@@ -121,6 +128,110 @@ export function NotebookEditor({
         ...prev,
         [currentTab.id]: tab.cells
       }))
+      // If a cell ID is provided, select it after refresh
+      if (selectCellId) {
+        setTimeout(() => setSelectedCellId(selectCellId), 50)
+      }
+    }
+  }
+
+  const handleRunSelectedCell = async () => {
+    if (!currentTab || !selectedCellId) return
+
+    const selectedCell = cells.find(c => c.id === selectedCellId)
+    if (!selectedCell || selectedCell.type !== 'code') return
+
+    const logs: string[] = []
+
+    // Get or create persistent context for this tab
+    if (!(window as any).__notebookContexts) {
+      (window as any).__notebookContexts = {}
+    }
+    if (!(window as any).__notebookContexts[currentTab.id]) {
+      (window as any).__notebookContexts[currentTab.id] = {}
+    }
+    const context = (window as any).__notebookContexts[currentTab.id]
+
+    // Override console to capture output
+    const originalLog = console.log
+    const originalError = console.error
+    const originalWarn = console.warn
+
+    console.log = (...args: any[]) => {
+      logs.push(args.map(a => typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a)).join(' '))
+      originalLog(...args)
+    }
+    console.error = (...args: any[]) => {
+      logs.push('[ERROR] ' + args.map(a => String(a)).join(' '))
+      originalError(...args)
+    }
+    console.warn = (...args: any[]) => {
+      logs.push('[WARN] ' + args.map(a => String(a)).join(' '))
+      originalWarn(...args)
+    }
+
+    try {
+      // Build function with context variables as parameters
+      const contextKeys = Object.keys(context)
+      const contextValues = Object.values(context)
+
+      // Create a function that executes the code with context variables and captures the result
+      const func = new Function(...contextKeys, '__code__', `
+        "use strict";
+        ${contextKeys.map(k => `var ${k} = arguments[${contextKeys.indexOf(k)}];`).join('\n')}
+        var __result__ = eval(__code__);
+        return __result__;
+      `)
+      const result = func(...contextValues, selectedCell.content)
+
+      // Capture any new or updated variables by re-evaluating in a wrapper
+      try {
+        const captureFunc = new Function(...contextKeys, '__code__', `
+          "use strict";
+          ${contextKeys.map(k => `var ${k} = arguments[${contextKeys.indexOf(k)}];`).join('\n')}
+          eval(__code__);
+          return {${contextKeys.map(k => `${k}: typeof ${k} !== 'undefined' ? ${k} : undefined`).join(', ')}};
+        `)
+        const capturedVars = captureFunc(...contextValues, selectedCell.content)
+
+        // Also capture any NEW variables declared in this cell
+        const allVarsFunc = new Function('__code__', `
+          "use strict";
+          ${contextKeys.map(k => `var ${k} = undefined;`).join('\n')}
+          eval(__code__);
+          const result = {};
+          for (let key in this) {
+            if (this.hasOwnProperty(key)) result[key] = this[key];
+          }
+          return result;
+        `)
+        const newVars = allVarsFunc.call({}, selectedCell.content)
+
+        // Merge captured variables
+        Object.assign(context, capturedVars, newVars)
+      } catch (e) {
+        // If capturing fails, that's okay
+        console.warn('Failed to capture variables:', e)
+      }
+
+      // Format output
+      let output = logs.join('\n')
+      if (!output && result !== undefined) {
+        output = typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result)
+      }
+
+      // Update the cell with output
+      handleCellContentChange(selectedCell.id, selectedCell.content, output || '')
+      await updateCell(selectedCell.id, { content: selectedCell.content, output: output || '' })
+    } catch (error: any) {
+      const errorMsg = `Error: ${error.message}`
+      handleCellContentChange(selectedCell.id, selectedCell.content, errorMsg)
+      await updateCell(selectedCell.id, { content: selectedCell.content, output: errorMsg })
+    } finally {
+      // Always restore console
+      console.log = originalLog
+      console.error = originalError
+      console.warn = originalWarn
     }
   }
 
@@ -138,23 +249,29 @@ export function NotebookEditor({
       {/* Jupyter Toolbar */}
       <div className="border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black px-4 py-2">
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" className="h-8 px-2">
+          <Button variant="ghost" size="sm" className="h-8 px-2" title="Add cell below">
             <Plus className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="sm" className="h-8 px-2">
+          <Button variant="ghost" size="sm" className="h-8 px-2" title="Save">
             <Save className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="sm" className="h-8 px-2">
+          <Button variant="ghost" size="sm" className="h-8 px-2" title="Add cell above">
             <Plus className="h-4 w-4" />
           </Button>
           <div className="h-6 w-px bg-neutral-200 dark:border-neutral-800 mx-1" />
-          <Button variant="ghost" size="sm" className="h-8 px-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2"
+            onClick={handleRunSelectedCell}
+            title="Run selected cell"
+          >
             <Play className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="sm" className="h-8 px-2">
+          <Button variant="ghost" size="sm" className="h-8 px-2" title="Stop">
             <Square className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="sm" className="h-8 px-2">
+          <Button variant="ghost" size="sm" className="h-8 px-2" title="Restart kernel">
             <RotateCw className="h-4 w-4" />
           </Button>
           <div className="h-6 w-px bg-neutral-200 dark:border-neutral-800 mx-1" />
