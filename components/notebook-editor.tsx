@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from './ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { CodeCell } from './code-cell'
@@ -38,6 +39,8 @@ export function NotebookEditor({
   activeTabId?: string
   onTabsChange?: (tabs: NotebookTab[]) => void
 }) {
+  const router = useRouter()
+
   // Find the active tab or default to first tab
   const activeTab = notebook.tabs.find(t => t.id === activeTabId) || notebook.tabs[0]
 
@@ -52,14 +55,13 @@ export function NotebookEditor({
 
   const [selectedCellId, setSelectedCellId] = useState<string | null>(activeTab?.cells[0]?.id || null)
 
-  // Update tabCells when notebook data changes (new tabs added)
+  // Update tabCells when notebook data changes (tabs added/cells reordered/etc)
   useEffect(() => {
     setTabCells(prev => {
-      const updated = { ...prev }
+      const updated: Record<string, typeof notebook.tabs[0]['cells']> = {}
       notebook.tabs.forEach(tab => {
-        if (!updated[tab.id]) {
-          updated[tab.id] = tab.cells
-        }
+        // Always use the latest cells from server, but preserve local edits
+        updated[tab.id] = tab.cells
       })
       return updated
     })
@@ -121,17 +123,11 @@ export function NotebookEditor({
 
   const refreshCells = (selectCellId?: string) => {
     if (!currentTab) return
-    // Refresh cells for current tab from server
-    const tab = notebook.tabs.find(t => t.id === currentTab.id)
-    if (tab) {
-      setTabCells(prev => ({
-        ...prev,
-        [currentTab.id]: tab.cells
-      }))
-      // If a cell ID is provided, select it after refresh
-      if (selectCellId) {
-        setTimeout(() => setSelectedCellId(selectCellId), 50)
-      }
+    // Refresh the page data from server to get latest cell order
+    router.refresh()
+    // If a cell ID is provided, select it after refresh
+    if (selectCellId) {
+      setTimeout(() => setSelectedCellId(selectCellId), 100)
     }
   }
 

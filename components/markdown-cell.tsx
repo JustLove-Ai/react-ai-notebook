@@ -3,7 +3,7 @@
 import { useState, useEffect, memo } from 'react'
 import { Button } from './ui/button'
 import { Textarea } from './ui/textarea'
-import { Trash2, Edit, Check, ChevronUp, ChevronDown, Plus, Copy } from 'lucide-react'
+import { Trash2, Edit, Check, ChevronUp, ChevronDown, Plus, Copy, ArrowUp, ArrowDown } from 'lucide-react'
 import { updateCell, deleteCell, insertCellAt, duplicateCell, moveCellUp, moveCellDown } from '@/lib/actions/notebooks'
 
 interface MarkdownCellProps {
@@ -177,19 +177,19 @@ function MarkdownCellComponent({ cell, tabId, notebookId, isSelected, onSelect, 
             size="sm"
             variant="ghost"
             onClick={handleInsertBefore}
-            title="Insert cell before"
+            title="Insert cell above"
             className="h-6 w-6 p-0"
           >
-            <Plus className="h-3 w-3" />
+            <ArrowUp className="h-3 w-3" />
           </Button>
           <Button
             size="sm"
             variant="ghost"
             onClick={handleInsertAfter}
-            title="Insert cell after"
+            title="Insert cell below"
             className="h-6 w-6 p-0"
           >
-            <Plus className="h-3 w-3 rotate-180" />
+            <ArrowDown className="h-3 w-3" />
           </Button>
           <Button
             size="sm"

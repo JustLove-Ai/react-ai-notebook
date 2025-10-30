@@ -46,27 +46,11 @@ export function JupyterLayout({ notebooks: initialNotebooks, currentNotebook, ch
     if (!currentNotebook) return
     setIsCreating(true)
     try {
-      // Create temp tab with client-side ID
-      const tempTab = {
-        id: `temp-${Date.now()}`,
-        title: 'Untitled',
-        order: notebookTabs.length,
-        cells: [{
-          id: `temp-cell-${Date.now()}`,
-          type: 'code' as const,
-          content: '',
-          output: null,
-          language: 'javascript',
-          order: 0
-        }]
-      }
-
-      // Optimistically add to state
-      setNotebookTabs([...notebookTabs, tempTab])
-      setActiveTabId(tempTab.id)
-
-      // Sync with server in background
-      createTab(currentNotebook.id, 'Untitled')
+      // Await server to create tab with real ID
+      const newTab = await createTab(currentNotebook.id, 'Untitled')
+      // Add real tab to state
+      setNotebookTabs([...notebookTabs, newTab as any])
+      setActiveTabId(newTab.id)
     } catch (error) {
       console.error('Failed to create tab:', error)
     }

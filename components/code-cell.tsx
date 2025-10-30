@@ -4,7 +4,7 @@ import { useState, useEffect, memo } from 'react'
 import Editor from '@monaco-editor/react'
 import { Button } from './ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
-import { Play, Trash2, Bot, ChevronUp, ChevronDown, Plus, Copy } from 'lucide-react'
+import { Play, Trash2, Bot, ChevronUp, ChevronDown, Plus, Copy, ArrowUp, ArrowDown } from 'lucide-react'
 import { updateCell, deleteCell, insertCellAt, duplicateCell, moveCellUp, moveCellDown } from '@/lib/actions/notebooks'
 import { useTheme } from 'next-themes'
 import { ChartRenderer } from './chart-renderer'
@@ -302,19 +302,19 @@ function CodeCellComponent({ cell, tabId, notebookId, isSelected, onSelect, onCe
             size="sm"
             variant="ghost"
             onClick={handleInsertBefore}
-            title="Insert cell before"
+            title="Insert cell above"
             className="h-6 w-6 p-0"
           >
-            <Plus className="h-3 w-3" />
+            <ArrowUp className="h-3 w-3" />
           </Button>
           <Button
             size="sm"
             variant="ghost"
             onClick={handleInsertAfter}
-            title="Insert cell after"
+            title="Insert cell below"
             className="h-6 w-6 p-0"
           >
-            <Plus className="h-3 w-3 rotate-180" />
+            <ArrowDown className="h-3 w-3" />
           </Button>
           <Button
             size="sm"
