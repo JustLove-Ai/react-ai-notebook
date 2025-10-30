@@ -3,8 +3,10 @@
 import { useState, useEffect, memo } from 'react'
 import { Button } from './ui/button'
 import { Textarea } from './ui/textarea'
-import { Trash2, Edit, Check, ChevronUp, ChevronDown, Plus, Copy, ArrowUp, ArrowDown } from 'lucide-react'
-import { updateCell, deleteCell, insertCellAt, duplicateCell, moveCellUp, moveCellDown } from '@/lib/actions/notebooks'
+import { Trash2, Edit, Check, GripVertical, Copy, ArrowUp, ArrowDown } from 'lucide-react'
+import { updateCell, deleteCell, insertCellAt, duplicateCell } from '@/lib/actions/notebooks'
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 interface MarkdownCellProps {
   cell: {
@@ -24,6 +26,16 @@ interface MarkdownCellProps {
 function MarkdownCellComponent({ cell, tabId, notebookId, isSelected, onSelect, onCellDeleted, onCellsChanged, onContentChange }: MarkdownCellProps) {
   const [content, setContent] = useState(cell.content)
   const [isEditing, setIsEditing] = useState(false)
+
+  // Setup drag and drop
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: cell.id })
 
   // Sync from parent when cell prop changes (e.g., tab switch)
   useEffect(() => {
@@ -82,18 +94,17 @@ function MarkdownCellComponent({ cell, tabId, notebookId, isSelected, onSelect, 
     }
   }
 
-  const handleMoveUp = async () => {
-    await moveCellUp(cell.id, notebookId)
-    onCellsChanged()
-  }
-
-  const handleMoveDown = async () => {
-    await moveCellDown(cell.id, notebookId)
-    onCellsChanged()
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
   }
 
   return (
     <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
       onClick={onSelect}
       className={`flex group hover:bg-neutral-50 dark:hover:bg-neutral-900/30 ${
         isSelected ? 'bg-neutral-50 dark:bg-neutral-900/30' : ''
@@ -191,24 +202,13 @@ function MarkdownCellComponent({ cell, tabId, notebookId, isSelected, onSelect, 
           >
             <ArrowDown className="h-3 w-3" />
           </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleMoveUp}
-            title="Move up"
-            className="h-6 w-6 p-0"
+          <div
+            className="h-6 w-6 p-0 flex items-center justify-center cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
+            title="Drag to reorder"
+            {...listeners}
           >
-            <ChevronUp className="h-3 w-3" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleMoveDown}
-            title="Move down"
-            className="h-6 w-6 p-0"
-          >
-            <ChevronDown className="h-3 w-3" />
-          </Button>
+            <GripVertical className="h-3 w-3 text-neutral-500" />
+          </div>
           <Button
             size="sm"
             variant="ghost"

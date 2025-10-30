@@ -8,6 +8,8 @@ import { CodeCell } from './code-cell'
 import { MarkdownCell } from './markdown-cell'
 import { Plus, Play, Square, RotateCw, ChevronUp, ChevronDown, Save } from 'lucide-react'
 import { createCell, updateCell } from '@/lib/actions/notebooks'
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
 
 interface NotebookTab {
   id: string
@@ -40,6 +42,14 @@ export function NotebookEditor({
   onTabsChange?: (tabs: NotebookTab[]) => void
 }) {
   const router = useRouter()
+
+  // Setup drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
 
   // Find the active tab or default to first tab
   const activeTab = notebook.tabs.find(t => t.id === activeTabId) || notebook.tabs[0]
@@ -128,6 +138,42 @@ export function NotebookEditor({
     // If a cell ID is provided, select it after refresh
     if (selectCellId) {
       setTimeout(() => setSelectedCellId(selectCellId), 100)
+    }
+  }
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+
+    if (!over || !currentTab || active.id === over.id) return
+
+    const oldIndex = cells.findIndex(c => c.id === active.id)
+    const newIndex = cells.findIndex(c => c.id === over.id)
+
+    if (oldIndex === -1 || newIndex === -1) return
+
+    // Optimistically update UI
+    const reorderedCells = arrayMove(cells, oldIndex, newIndex).map((cell, idx) => ({
+      ...cell,
+      order: idx
+    }))
+
+    setTabCells(prev => ({
+      ...prev,
+      [currentTab.id]: reorderedCells
+    }))
+
+    // Sync to server in background
+    try {
+      // Update all affected cells' order
+      await Promise.all(
+        reorderedCells.map(cell => updateCell(cell.id, { order: cell.order }))
+      )
+      // Refresh to ensure consistency
+      router.refresh()
+    } catch (error) {
+      console.error('Failed to reorder cells:', error)
+      // Revert on error
+      router.refresh()
     }
   }
 
@@ -286,33 +332,44 @@ export function NotebookEditor({
       {/* Notebook Content */}
       <div className="flex-1 overflow-auto">
         <div className="max-w-[1600px] mx-auto px-8">
-          {cells.map((cell) => (
-            <div key={cell.id}>
-              {cell.type === 'code' ? (
-                <CodeCell
-                  cell={cell}
-                  tabId={currentTab?.id || ''}
-                  notebookId={notebook.id}
-                  isSelected={selectedCellId === cell.id}
-                  onSelect={() => setSelectedCellId(cell.id)}
-                  onCellDeleted={handleCellDeleted}
-                  onCellsChanged={refreshCells}
-                  onContentChange={handleCellContentChange}
-                />
-              ) : (
-                <MarkdownCell
-                  cell={cell}
-                  tabId={currentTab?.id || ''}
-                  notebookId={notebook.id}
-                  isSelected={selectedCellId === cell.id}
-                  onSelect={() => setSelectedCellId(cell.id)}
-                  onCellDeleted={handleCellDeleted}
-                  onCellsChanged={refreshCells}
-                  onContentChange={handleCellContentChange}
-                />
-              )}
-            </div>
-          ))}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={cells.map(c => c.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {cells.map((cell) => (
+                <div key={cell.id}>
+                  {cell.type === 'code' ? (
+                    <CodeCell
+                      cell={cell}
+                      tabId={currentTab?.id || ''}
+                      notebookId={notebook.id}
+                      isSelected={selectedCellId === cell.id}
+                      onSelect={() => setSelectedCellId(cell.id)}
+                      onCellDeleted={handleCellDeleted}
+                      onCellsChanged={refreshCells}
+                      onContentChange={handleCellContentChange}
+                    />
+                  ) : (
+                    <MarkdownCell
+                      cell={cell}
+                      tabId={currentTab?.id || ''}
+                      notebookId={notebook.id}
+                      isSelected={selectedCellId === cell.id}
+                      onSelect={() => setSelectedCellId(cell.id)}
+                      onCellDeleted={handleCellDeleted}
+                      onCellsChanged={refreshCells}
+                      onContentChange={handleCellContentChange}
+                    />
+                  )}
+                </div>
+              ))}
+            </SortableContext>
+          </DndContext>
 
           {/* Click to add cell */}
           <div
