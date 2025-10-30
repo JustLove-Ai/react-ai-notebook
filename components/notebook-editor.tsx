@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { CodeCell } from './code-cell'
 import { MarkdownCell } from './markdown-cell'
 import { Plus, Play, Square, RotateCw, ChevronUp, ChevronDown, Save } from 'lucide-react'
-import { createCell, updateCell } from '@/lib/actions/notebooks'
+import { createCell, updateCell, reorderCells } from '@/lib/actions/notebooks'
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
 
@@ -164,12 +164,11 @@ export function NotebookEditor({
 
     // Sync to server in background
     try {
-      // Update all affected cells' order
-      await Promise.all(
-        reorderedCells.map(cell => updateCell(cell.id, { order: cell.order }))
+      // Update all cells' order using reorderCells function
+      await reorderCells(
+        reorderedCells.map(cell => ({ id: cell.id, order: cell.order })),
+        notebook.id
       )
-      // Refresh to ensure consistency
-      router.refresh()
     } catch (error) {
       console.error('Failed to reorder cells:', error)
       // Revert on error

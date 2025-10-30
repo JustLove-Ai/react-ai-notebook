@@ -204,7 +204,7 @@ export async function deleteCell(id: string, notebookId: string) {
   revalidatePath(`/notebooks/${notebookId}`)
 }
 
-export async function reorderCells(cellUpdates: { id: string; order: number }[]) {
+export async function reorderCells(cellUpdates: { id: string; order: number }[], notebookId: string) {
   await Promise.all(
     cellUpdates.map(({ id, order }) =>
       prisma.notebookCell.update({
@@ -213,6 +213,7 @@ export async function reorderCells(cellUpdates: { id: string; order: number }[])
       })
     )
   )
+  revalidatePath(`/notebooks/${notebookId}`)
 }
 
 export async function duplicateCell(cellId: string, notebookId: string) {
