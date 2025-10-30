@@ -1,0 +1,47 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model Notebook {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  tabs        NotebookTab[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model NotebookTab {
+  id         String         @id @default(auto()) @map("_id") @db.ObjectId
+  notebookId String         @db.ObjectId
+  notebook   Notebook       @relation(fields: [notebookId], references: [id], onDelete: Cascade)
+  title      String         @default("Untitled")
+  order      Int
+  cells      NotebookCell[]
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+}
+
+model NotebookCell {
+  id    String      @id @default(auto()) @map("_id") @db.ObjectId
+  tabId String      @db.ObjectId
+  tab   NotebookTab @relation(fields: [tabId], references: [id], onDelete: Cascade)
+  type  String      // "code" or "markdown"
+  content String
+  output  String?   // For code cells
+  language String   @default("javascript") // javascript, typescript, python, etc.
+  order    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
