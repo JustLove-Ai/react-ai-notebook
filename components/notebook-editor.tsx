@@ -11,6 +11,7 @@ import { createCell, updateCell, reorderCells } from '@/lib/actions/notebooks'
 import { DragEndEvent } from '@dnd-kit/core'
 import { arrayMove } from '@dnd-kit/sortable'
 import { SortableCellsWrapper } from './sortable-cells-wrapper'
+import { MarkdownTipsPopover } from './markdown-tips-popover'
 
 interface NotebookTab {
   id: string
@@ -318,6 +319,7 @@ export function NotebookEditor({
               <SelectItem value="markdown">Markdown</SelectItem>
             </SelectContent>
           </Select>
+          <MarkdownTipsPopover />
         </div>
       </div>
 

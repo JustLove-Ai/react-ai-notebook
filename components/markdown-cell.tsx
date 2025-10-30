@@ -7,6 +7,8 @@ import { Trash2, Edit, Check, GripVertical, Copy, ArrowUp, ArrowDown } from 'luc
 import { updateCell, deleteCell, insertCellAt, duplicateCell } from '@/lib/actions/notebooks'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 interface MarkdownCellProps {
   cell: {
@@ -129,7 +131,7 @@ function MarkdownCellComponent({ cell, tabId, notebookId, isSelected, onSelect, 
           />
         ) : (
           <div
-            className="prose prose-sm prose-neutral dark:prose-invert max-w-none min-h-[40px] cursor-text"
+            className="prose prose-sm prose-neutral dark:prose-invert max-w-none min-h-[40px] cursor-text px-4"
             onDoubleClick={() => setIsEditing(true)}
           >
             {!content || content.trim() === '' ? (
@@ -137,36 +139,9 @@ function MarkdownCellComponent({ cell, tabId, notebookId, isSelected, onSelect, 
                 Double-click to edit markdown...
               </p>
             ) : (
-              content.split('\n').map((line, i) => {
-                const trimmedLine = line.trim()
-                // Match headers with or without space after #
-                if (trimmedLine.match(/^###\s+/)) {
-                  return <h3 key={i} className="text-base font-semibold mb-1 mt-2 text-neutral-900 dark:text-neutral-100">{trimmedLine.replace(/^###\s+/, '')}</h3>
-                } else if (trimmedLine.match(/^##\s+/)) {
-                  return <h2 key={i} className="text-lg font-bold mb-2 mt-3 text-neutral-900 dark:text-neutral-100">{trimmedLine.replace(/^##\s+/, '')}</h2>
-                } else if (trimmedLine.match(/^#\s+/)) {
-                  return <h1 key={i} className="text-2xl font-bold mb-3 mt-4 text-neutral-900 dark:text-neutral-100">{trimmedLine.replace(/^#\s+/, '')}</h1>
-                } else if (trimmedLine.match(/^-\s+/) || trimmedLine.match(/^\*\s+/)) {
-                  return <li key={i} className="ml-4 text-sm text-neutral-700 dark:text-neutral-300 list-disc">{trimmedLine.replace(/^[-*]\s+/, '')}</li>
-                } else if (trimmedLine.match(/^\d+\.\s+/)) {
-                  return <li key={i} className="ml-4 text-sm text-neutral-700 dark:text-neutral-300 list-decimal">{trimmedLine.replace(/^\d+\.\s+/, '')}</li>
-                } else if (trimmedLine.startsWith('```')) {
-                  return <code key={i} className="block bg-neutral-100 dark:bg-neutral-800 p-2 rounded text-xs font-mono">{trimmedLine.replace(/```.*/, '')}</code>
-                } else if (trimmedLine) {
-                  // Bold text **text** or __text__
-                  let processedLine = line
-                  processedLine = processedLine.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                  processedLine = processedLine.replace(/__(.*?)__/g, '<strong>$1</strong>')
-                  // Italic text *text* or _text_
-                  processedLine = processedLine.replace(/\*(.*?)\*/g, '<em>$1</em>')
-                  processedLine = processedLine.replace(/_(.*?)_/g, '<em>$1</em>')
-                  // Inline code `code`
-                  processedLine = processedLine.replace(/`(.*?)`/g, '<code class="bg-neutral-100 dark:bg-neutral-800 px-1 rounded text-xs font-mono">$1</code>')
-
-                  return <p key={i} className="mb-2 text-sm text-neutral-700 dark:text-neutral-300" dangerouslySetInnerHTML={{ __html: processedLine }} />
-                }
-                return <br key={i} />
-              })
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {content}
+              </ReactMarkdown>
             )}
           </div>
         )}
