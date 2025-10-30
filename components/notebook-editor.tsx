@@ -335,6 +335,7 @@ export function NotebookEditor({
             sensors={sensors}
             collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
+            id={`dnd-${currentTab?.id || 'default'}`}
           >
             <SortableContext
               items={cells.map(c => c.id)}
