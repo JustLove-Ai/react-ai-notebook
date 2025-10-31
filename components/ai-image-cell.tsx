@@ -4,10 +4,11 @@ import { useState, useEffect, memo } from 'react'
 import { Button } from './ui/button'
 import { Textarea } from './ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
-import { Trash2, GripVertical, Copy, ArrowUp, ArrowDown, Image as ImageIcon, Loader2 } from 'lucide-react'
+import { Trash2, GripVertical, Copy, ArrowUp, ArrowDown, Image as ImageIcon, Loader2, Upload } from 'lucide-react'
 import { updateCell, deleteCell, insertCellAt, duplicateCell } from '@/lib/actions/notebooks'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { ImageLightbox } from './image-lightbox'
 
 interface AIImageCellProps {
   cell: {
@@ -37,6 +38,7 @@ function AIImageCellComponent({ cell, tabId, notebookId, isSelected, onSelect, o
   const [output, setOutput] = useState(cell.output || '')
   const [model, setModel] = useState(cell.language || 'gpt-image-1')
   const [isGenerating, setIsGenerating] = useState(false)
+  const [showLightbox, setShowLightbox] = useState(false)
 
   // Setup drag and drop
   const {
@@ -74,6 +76,26 @@ function AIImageCellComponent({ cell, tabId, notebookId, isSelected, onSelect, o
     setModel(newModel)
     onContentChange(cell.id, prompt, output)
     await updateCell(cell.id, { content: prompt, language: newModel })
+  }
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file')
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = async (event) => {
+      const base64 = event.target?.result as string
+      setOutput(base64)
+      setPrompt(prompt || `Uploaded: ${file.name}`)
+      onContentChange(cell.id, prompt || `Uploaded: ${file.name}`, base64)
+      await updateCell(cell.id, { content: prompt || `Uploaded: ${file.name}`, output: base64, language: model })
+    }
+    reader.readAsDataURL(file)
   }
 
   const handleGenerate = async () => {
@@ -218,10 +240,27 @@ function AIImageCellComponent({ cell, tabId, notebookId, isSelected, onSelect, o
               ) : (
                 <>
                   <ImageIcon className="h-3 w-3 mr-1" />
-                  Generate Image
+                  Generate
                 </>
               )}
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => document.getElementById(`image-upload-${cell.id}`)?.click()}
+              disabled={isGenerating}
+              className="h-7"
+            >
+              <Upload className="h-3 w-3 mr-1" />
+              Upload
+            </Button>
+            <input
+              id={`image-upload-${cell.id}`}
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="hidden"
+            />
           </div>
 
           <Textarea
@@ -282,7 +321,7 @@ function AIImageCellComponent({ cell, tabId, notebookId, isSelected, onSelect, o
           </Button>
         </div>
 
-        {/* Image Output - No indentation */}
+        {/* Image Output - Smaller with lightbox */}
         {output && !isGeneratingText && (
           <div className="mt-2">
             <div className="border border-purple-200 dark:border-purple-800 rounded p-4 bg-purple-50/50 dark:bg-purple-950/20">
@@ -292,7 +331,8 @@ function AIImageCellComponent({ cell, tabId, notebookId, isSelected, onSelect, o
                 <img
                   src={output}
                   alt={prompt}
-                  className="max-w-full h-auto rounded"
+                  className="max-w-md h-auto rounded cursor-pointer hover:opacity-90 transition-opacity"
+                  onClick={() => setShowLightbox(true)}
                   onError={(e) => {
                     const target = e.target as HTMLImageElement
                     target.style.display = 'none'
@@ -310,6 +350,15 @@ function AIImageCellComponent({ cell, tabId, notebookId, isSelected, onSelect, o
               <p className="text-purple-600 dark:text-purple-400 text-sm animate-pulse">{output}</p>
             </div>
           </div>
+        )}
+
+        {/* Lightbox */}
+        {showLightbox && !isError && output && (
+          <ImageLightbox
+            src={output}
+            alt={prompt}
+            onClose={() => setShowLightbox(false)}
+          />
         )}
       </div>
     </div>
