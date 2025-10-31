@@ -66,6 +66,23 @@ function MarkdownCellComponent({ cell, tabId, notebookId, isSelected, onSelect, 
     setIsEditing(false)
   }
 
+  const handleBlur = async () => {
+    // Auto-save when clicking away (like Jupyter)
+    if (content !== cell.content) {
+      onContentChange(cell.id, content)
+      await updateCell(cell.id, { content })
+    }
+    setIsEditing(false)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Shift+Enter to render (like Jupyter)
+    if (e.key === 'Enter' && e.shiftKey) {
+      e.preventDefault()
+      handleSave()
+    }
+  }
+
   const handleDelete = async () => {
     // Optimistically update UI first
     onCellDeleted(cell.id)
@@ -125,8 +142,10 @@ function MarkdownCellComponent({ cell, tabId, notebookId, isSelected, onSelect, 
           <Textarea
             value={content}
             onChange={(e) => handleContentChange(e.target.value)}
+            onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
             className="min-h-[80px] font-mono text-sm border-neutral-200 dark:border-neutral-800 w-full px-4 py-3"
-            placeholder="# Write markdown here..."
+            placeholder="# Write markdown here... (Shift+Enter to render)"
             autoFocus
           />
         ) : (
