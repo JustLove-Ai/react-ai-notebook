@@ -211,66 +211,65 @@ function AIImageCellComponent({ cell, tabId, notebookId, isSelected, onSelect, o
 
       {/* Cell Content */}
       <div className="flex-1 min-w-0 relative py-2">
-        {/* Prompt Input & Model Selection */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 px-4">
-            <Select value={model} onValueChange={handleModelChange}>
-              <SelectTrigger className="w-48 h-7 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {AI_IMAGE_MODELS.map(m => (
-                  <SelectItem key={m.value} value={m.value}>
-                    {m.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              size="sm"
-              onClick={handleGenerate}
-              disabled={isGenerating || !prompt.trim()}
-              className="h-7 bg-purple-600 hover:bg-purple-700 text-white"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <ImageIcon className="h-3 w-3 mr-1" />
-                  Generate
-                </>
-              )}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => document.getElementById(`image-upload-${cell.id}`)?.click()}
-              disabled={isGenerating}
-              className="h-7"
-            >
-              <Upload className="h-3 w-3 mr-1" />
-              Upload
-            </Button>
-            <input
-              id={`image-upload-${cell.id}`}
-              type="file"
-              accept="image/*"
-              onChange={handleImageUpload}
-              className="hidden"
-            />
-          </div>
-
-          <Textarea
+        {/* Prompt Input & Model Selection - Single Line */}
+        <div className="flex items-center gap-2 border border-purple-200 dark:border-purple-800 rounded px-3 py-2">
+          <Select value={model} onValueChange={handleModelChange}>
+            <SelectTrigger className="w-32 h-7 text-xs border-none shadow-none">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {AI_IMAGE_MODELS.map(m => (
+                <SelectItem key={m.value} value={m.value}>
+                  {m.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="h-5 w-px bg-neutral-200 dark:bg-neutral-700" />
+          <input
+            type="text"
             value={prompt}
             onChange={(e) => handlePromptChange(e.target.value)}
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
-            className="min-h-[80px] font-sans text-sm border-purple-200 dark:border-purple-800 w-full px-4 py-3"
+            className="flex-1 bg-transparent outline-none text-sm font-sans"
             placeholder="Describe the image you want to generate... (Shift+Enter to generate)"
             autoFocus={isSelected}
+          />
+          <Button
+            size="sm"
+            onClick={handleGenerate}
+            disabled={isGenerating || !prompt.trim()}
+            className="h-7 bg-purple-600 hover:bg-purple-700 text-white px-3"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <ImageIcon className="h-3 w-3 mr-1" />
+                Generate
+              </>
+            )}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => document.getElementById(`image-upload-${cell.id}`)?.click()}
+            disabled={isGenerating}
+            className="h-7 px-3"
+          >
+            <Upload className="h-3 w-3 mr-1" />
+            Upload
+          </Button>
+          <input
+            id={`image-upload-${cell.id}`}
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            className="hidden"
           />
         </div>
 

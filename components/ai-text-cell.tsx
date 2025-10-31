@@ -188,50 +188,49 @@ function AITextCellComponent({ cell, tabId, notebookId, isSelected, onSelect, on
 
       {/* Cell Content */}
       <div className="flex-1 min-w-0 relative py-2">
-        {/* Prompt Input & Model Selection */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 px-4">
-            <Select value={model} onValueChange={handleModelChange}>
-              <SelectTrigger className="w-48 h-7 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {AI_TEXT_MODELS.map(m => (
-                  <SelectItem key={m.value} value={m.value}>
-                    {m.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              size="sm"
-              onClick={handleRun}
-              disabled={isRunning || !prompt.trim()}
-              className="h-7 bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              {isRunning ? (
-                <>
-                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  Running...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-3 w-3 mr-1" />
-                  Run AI
-                </>
-              )}
-            </Button>
-          </div>
-
-          <Textarea
+        {/* Prompt Input & Model Selection - Single Line */}
+        <div className="flex items-center gap-2 border border-blue-200 dark:border-blue-800 rounded px-3 py-2">
+          <Select value={model} onValueChange={handleModelChange}>
+            <SelectTrigger className="w-40 h-7 text-xs border-none shadow-none">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {AI_TEXT_MODELS.map(m => (
+                <SelectItem key={m.value} value={m.value}>
+                  {m.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="h-5 w-px bg-neutral-200 dark:bg-neutral-700" />
+          <input
+            type="text"
             value={prompt}
             onChange={(e) => handlePromptChange(e.target.value)}
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
-            className="min-h-[80px] font-sans text-sm border-blue-200 dark:border-blue-800 w-full px-4 py-3"
+            className="flex-1 bg-transparent outline-none text-sm font-sans"
             placeholder="Ask the AI anything... (Shift+Enter to run)"
             autoFocus={isSelected}
           />
+          <Button
+            size="sm"
+            onClick={handleRun}
+            disabled={isRunning || !prompt.trim()}
+            className="h-7 bg-blue-600 hover:bg-blue-700 text-white px-3"
+          >
+            {isRunning ? (
+              <>
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                Running...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-3 w-3 mr-1" />
+                Run
+              </>
+            )}
+          </Button>
         </div>
 
         {/* Right-side cell actions */}

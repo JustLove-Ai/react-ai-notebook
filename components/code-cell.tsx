@@ -354,15 +354,10 @@ function CodeCellComponent({ cell, tabId, notebookId, isSelected, onSelect, onCe
           </Button>
         </div>
 
-        {/* Output */}
+        {/* Output - No indentation */}
         {output && (
-          <div className="mt-2 flex">
-            <div className="w-12 flex-shrink-0 pt-3 pr-2 text-right">
-              <span className="text-xs text-neutral-500 dark:text-neutral-400 font-mono">
-                [{execNumber}]
-              </span>
-            </div>
-            <div className="flex-1 border border-neutral-200 dark:border-neutral-800 rounded p-3 bg-neutral-50 dark:bg-neutral-900/30">
+          <div className="mt-2">
+            <div className="border border-neutral-200 dark:border-neutral-800 rounded p-3 bg-neutral-50 dark:bg-neutral-900/30">
               <ChartRenderer output={output} />
             </div>
           </div>
