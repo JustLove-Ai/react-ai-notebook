@@ -198,6 +198,17 @@ export async function updateCell(id: string, data: { content?: string; output?: 
   })
 }
 
+export async function changeCellType(id: string, type: 'code' | 'markdown') {
+  return await prisma.notebookCell.update({
+    where: { id },
+    data: {
+      type,
+      language: type === 'code' ? 'javascript' : 'markdown',
+      output: type === 'markdown' ? null : undefined // Clear output when converting to markdown
+    }
+  })
+}
+
 export async function deleteCell(id: string, notebookId: string) {
   await prisma.notebookCell.delete({
     where: { id }

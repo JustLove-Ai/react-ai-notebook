@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { CodeCell } from './code-cell'
 import { MarkdownCell } from './markdown-cell'
 import { Plus, Play, Square, RotateCw, ChevronUp, ChevronDown, Save } from 'lucide-react'
-import { createCell, updateCell, reorderCells } from '@/lib/actions/notebooks'
+import { createCell, updateCell, reorderCells, changeCellType } from '@/lib/actions/notebooks'
 import { DragEndEvent } from '@dnd-kit/core'
 import { arrayMove } from '@dnd-kit/sortable'
 import { SortableCellsWrapper } from './sortable-cells-wrapper'
@@ -84,6 +84,7 @@ export function NotebookEditor({
 
   const currentTab = activeTab
   const cells = tabCells[activeTab?.id || ''] || []
+  const selectedCell = cells.find(c => c.id === selectedCellId)
 
   const handleAddCell = async (type: 'code' | 'markdown') => {
     if (!currentTab) return
@@ -168,6 +169,24 @@ export function NotebookEditor({
       // Revert on error
       router.refresh()
     }
+  }
+
+  const handleChangeCellType = async (newType: 'code' | 'markdown') => {
+    if (!currentTab || !selectedCellId || !selectedCell) return
+    if (selectedCell.type === newType) return // Already that type
+
+    // Update type in database
+    await changeCellType(selectedCellId, newType)
+
+    // Update local state
+    setTabCells(prev => ({
+      ...prev,
+      [currentTab.id]: (prev[currentTab.id] || []).map(c =>
+        c.id === selectedCellId
+          ? { ...c, type: newType, language: newType === 'code' ? 'javascript' : 'markdown', output: newType === 'markdown' ? null : c.output }
+          : c
+      )
+    }))
   }
 
   const handleRunSelectedCell = async () => {
@@ -310,7 +329,11 @@ export function NotebookEditor({
             <RotateCw className="h-4 w-4" />
           </Button>
           <div className="h-6 w-px bg-neutral-200 dark:border-neutral-800 mx-1" />
-          <Select defaultValue="code">
+          <Select
+            value={selectedCell?.type || 'code'}
+            onValueChange={(value) => handleChangeCellType(value as 'code' | 'markdown')}
+            disabled={!selectedCell}
+          >
             <SelectTrigger className="w-24 h-7 text-xs">
               <SelectValue />
             </SelectTrigger>

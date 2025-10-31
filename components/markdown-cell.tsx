@@ -197,11 +197,11 @@ function MarkdownCellComponent({ cell, tabId, notebookId, isSelected, onSelect, 
             <ArrowDown className="h-3 w-3" />
           </Button>
           <div
-            className="h-6 w-6 p-0 flex items-center justify-center cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
+            className="h-6 w-6 p-0 flex items-center justify-center cursor-grab active:cursor-grabbing"
             title="Drag to reorder"
             {...listeners}
           >
-            <GripVertical className="h-3 w-3 text-neutral-500" />
+            <GripVertical className="h-3 w-3 text-neutral-400" />
           </div>
           <Button
             size="sm"
