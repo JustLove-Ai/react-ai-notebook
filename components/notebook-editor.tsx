@@ -6,7 +6,8 @@ import { Button } from './ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { CodeCell } from './code-cell'
 import { MarkdownCell } from './markdown-cell'
-import { AICell } from './ai-cell'
+import { AITextCell } from './ai-text-cell'
+import { AIImageCell } from './ai-image-cell'
 import { Plus, Play, Square, RotateCw, ChevronUp, ChevronDown, Save } from 'lucide-react'
 import { createCell, updateCell, reorderCells, changeCellType } from '@/lib/actions/notebooks'
 import { DragEndEvent } from '@dnd-kit/core'
@@ -87,7 +88,7 @@ export function NotebookEditor({
   const cells = tabCells[activeTab?.id || ''] || []
   const selectedCell = cells.find(c => c.id === selectedCellId)
 
-  const handleAddCell = async (type: 'code' | 'markdown' | 'ai') => {
+  const handleAddCell = async (type: 'code' | 'markdown' | 'ai-text' | 'ai-image') => {
     if (!currentTab) return
     const newOrder = cells.length
     const newCell = await createCell(currentTab.id, notebook.id, type, newOrder)
@@ -172,12 +173,18 @@ export function NotebookEditor({
     }
   }
 
-  const handleChangeCellType = async (newType: 'code' | 'markdown' | 'ai') => {
+  const handleChangeCellType = async (newType: 'code' | 'markdown' | 'ai-text' | 'ai-image') => {
     if (!currentTab || !selectedCellId || !selectedCell) return
     if (selectedCell.type === newType) return // Already that type
 
     // Update type in database
     await changeCellType(selectedCellId, newType)
+
+    // Determine language based on type
+    let language = 'javascript'
+    if (newType === 'markdown') language = 'markdown'
+    else if (newType === 'ai-text') language = 'gpt-4o'
+    else if (newType === 'ai-image') language = 'gpt-image-1'
 
     // Update local state
     setTabCells(prev => ({
@@ -187,7 +194,7 @@ export function NotebookEditor({
           ? {
               ...c,
               type: newType,
-              language: newType === 'code' ? 'javascript' : newType === 'ai' ? 'claude-3.5-sonnet' : 'markdown',
+              language,
               output: newType === 'markdown' ? null : c.output
             }
           : c
@@ -337,16 +344,17 @@ export function NotebookEditor({
           <div className="h-6 w-px bg-neutral-200 dark:border-neutral-800 mx-1" />
           <Select
             value={selectedCell?.type || 'code'}
-            onValueChange={(value) => handleChangeCellType(value as 'code' | 'markdown' | 'ai')}
+            onValueChange={(value) => handleChangeCellType(value as 'code' | 'markdown' | 'ai-text' | 'ai-image')}
             disabled={!selectedCell}
           >
-            <SelectTrigger className="w-24 h-7 text-xs">
+            <SelectTrigger className="w-28 h-7 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="code">Code</SelectItem>
               <SelectItem value="markdown">Markdown</SelectItem>
-              <SelectItem value="ai">AI</SelectItem>
+              <SelectItem value="ai-text">AI Text</SelectItem>
+              <SelectItem value="ai-image">AI Image</SelectItem>
             </SelectContent>
           </Select>
           <MarkdownTipsPopover />
@@ -374,8 +382,19 @@ export function NotebookEditor({
                     onCellsChanged={refreshCells}
                     onContentChange={handleCellContentChange}
                   />
-                ) : cell.type === 'ai' ? (
-                  <AICell
+                ) : cell.type === 'ai-text' || cell.type === 'ai' ? (
+                  <AITextCell
+                    cell={cell}
+                    tabId={currentTab?.id || ''}
+                    notebookId={notebook.id}
+                    isSelected={selectedCellId === cell.id}
+                    onSelect={() => setSelectedCellId(cell.id)}
+                    onCellDeleted={handleCellDeleted}
+                    onCellsChanged={refreshCells}
+                    onContentChange={handleCellContentChange}
+                  />
+                ) : cell.type === 'ai-image' ? (
+                  <AIImageCell
                     cell={cell}
                     tabId={currentTab?.id || ''}
                     notebookId={notebook.id}

@@ -176,13 +176,13 @@ export async function deleteTab(id: string, notebookId: string) {
   revalidatePath(`/notebooks/${notebookId}`)
 }
 
-export async function createCell(tabId: string, notebookId: string, type: 'code' | 'markdown' | 'ai', order: number) {
+export async function createCell(tabId: string, notebookId: string, type: 'code' | 'markdown' | 'ai-text' | 'ai-image', order: number) {
   const cell = await prisma.notebookCell.create({
     data: {
       tabId,
       type,
       content: '',
-      language: type === 'code' ? 'javascript' : type === 'ai' ? 'claude-3.5-sonnet' : 'markdown',
+      language: type === 'code' ? 'javascript' : type === 'ai-text' ? 'gpt-4o' : type === 'ai-image' ? 'gpt-image-1' : 'markdown',
       order
     }
   })
@@ -198,12 +198,12 @@ export async function updateCell(id: string, data: { content?: string; output?: 
   })
 }
 
-export async function changeCellType(id: string, type: 'code' | 'markdown' | 'ai') {
+export async function changeCellType(id: string, type: 'code' | 'markdown' | 'ai-text' | 'ai-image') {
   return await prisma.notebookCell.update({
     where: { id },
     data: {
       type,
-      language: type === 'code' ? 'javascript' : type === 'ai' ? 'claude-3.5-sonnet' : 'markdown',
+      language: type === 'code' ? 'javascript' : type === 'ai-text' ? 'gpt-4o' : type === 'ai-image' ? 'gpt-image-1' : 'markdown',
       output: type === 'markdown' ? null : undefined // Clear output when converting to markdown
     }
   })
@@ -269,7 +269,7 @@ export async function duplicateCell(cellId: string, notebookId: string) {
   return newCell
 }
 
-export async function insertCellAt(tabId: string, notebookId: string, type: 'code' | 'markdown' | 'ai', order: number) {
+export async function insertCellAt(tabId: string, notebookId: string, type: 'code' | 'markdown' | 'ai-text' | 'ai-image', order: number) {
   // Get cells with order >= new order
   const cellsToUpdate = await prisma.notebookCell.findMany({
     where: {
@@ -294,7 +294,7 @@ export async function insertCellAt(tabId: string, notebookId: string, type: 'cod
       tabId,
       type,
       content: '',
-      language: type === 'code' ? 'javascript' : type === 'ai' ? 'claude-3.5-sonnet' : 'markdown',
+      language: type === 'code' ? 'javascript' : type === 'ai-text' ? 'gpt-4o' : type === 'ai-image' ? 'gpt-image-1' : 'markdown',
       order
     }
   })

@@ -4,14 +4,12 @@ import { useState, useEffect, memo } from 'react'
 import { Button } from './ui/button'
 import { Textarea } from './ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
-import { Trash2, GripVertical, Copy, ArrowUp, ArrowDown, Sparkles, Loader2 } from 'lucide-react'
+import { Trash2, GripVertical, Copy, ArrowUp, ArrowDown, Image as ImageIcon, Loader2 } from 'lucide-react'
 import { updateCell, deleteCell, insertCellAt, duplicateCell } from '@/lib/actions/notebooks'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 
-interface AICellProps {
+interface AIImageCellProps {
   cell: {
     id: string
     content: string
@@ -28,19 +26,17 @@ interface AICellProps {
   onContentChange: (cellId: string, content: string, output?: string) => void
 }
 
-const AI_MODELS = [
-  { value: 'claude-3.5-sonnet', label: 'Claude 3.5 Sonnet' },
-  { value: 'claude-3-opus', label: 'Claude 3 Opus' },
-  { value: 'claude-3-haiku', label: 'Claude 3 Haiku' },
-  { value: 'gpt-4', label: 'GPT-4' },
-  { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
+const AI_IMAGE_MODELS = [
+  { value: 'gpt-image-1', label: 'GPT Image 1' },
+  { value: 'dall-e-3', label: 'DALL-E 3' },
+  { value: 'dall-e-2', label: 'DALL-E 2' },
 ]
 
-function AICellComponent({ cell, tabId, notebookId, isSelected, onSelect, onCellDeleted, onCellsChanged, onContentChange }: AICellProps) {
+function AIImageCellComponent({ cell, tabId, notebookId, isSelected, onSelect, onCellDeleted, onCellsChanged, onContentChange }: AIImageCellProps) {
   const [prompt, setPrompt] = useState(cell.content)
   const [output, setOutput] = useState(cell.output || '')
-  const [model, setModel] = useState(cell.language || 'claude-3.5-sonnet')
-  const [isRunning, setIsRunning] = useState(false)
+  const [model, setModel] = useState(cell.language || 'gpt-image-1')
+  const [isGenerating, setIsGenerating] = useState(false)
 
   // Setup drag and drop
   const {
@@ -52,14 +48,14 @@ function AICellComponent({ cell, tabId, notebookId, isSelected, onSelect, onCell
     isDragging,
   } = useSortable({ id: cell.id })
 
-  // Sync from parent when cell prop changes (e.g., tab switch)
+  // Sync from parent when cell prop changes
   useEffect(() => {
     setPrompt(cell.content)
     setOutput(cell.output || '')
-    setModel(cell.language || 'claude-3.5-sonnet')
+    setModel(cell.language || 'gpt-image-1')
   }, [cell.content, cell.output, cell.language])
 
-  // Debounce content sync to parent to prevent focus issues
+  // Debounce content sync to parent
   useEffect(() => {
     const timer = setTimeout(() => {
       if (prompt !== cell.content || output !== cell.output || model !== cell.language) {
@@ -80,11 +76,11 @@ function AICellComponent({ cell, tabId, notebookId, isSelected, onSelect, onCell
     await updateCell(cell.id, { content: prompt, language: newModel })
   }
 
-  const handleRun = async () => {
+  const handleGenerate = async () => {
     if (!prompt.trim()) return
 
-    setIsRunning(true)
-    setOutput('Thinking...')
+    setIsGenerating(true)
+    setOutput('Generating image...')
 
     try {
       const response = await fetch('/api/ai', {
@@ -93,6 +89,7 @@ function AICellComponent({ cell, tabId, notebookId, isSelected, onSelect, onCell
         body: JSON.stringify({
           prompt,
           model,
+          type: 'image',
         }),
       })
 
@@ -101,26 +98,30 @@ function AICellComponent({ cell, tabId, notebookId, isSelected, onSelect, onCell
       }
 
       const data = await response.json()
-      const aiResponse = data.response || data.content || 'No response from AI'
+      // Expecting image URL or base64 data
+      const imageUrl = data.imageUrl || data.url || data.image || ''
 
-      setOutput(aiResponse)
-      onContentChange(cell.id, prompt, aiResponse)
-      await updateCell(cell.id, { content: prompt, output: aiResponse, language: model })
+      if (!imageUrl) {
+        throw new Error('No image URL returned from API')
+      }
+
+      setOutput(imageUrl)
+      onContentChange(cell.id, prompt, imageUrl)
+      await updateCell(cell.id, { content: prompt, output: imageUrl, language: model })
     } catch (error: any) {
       const errorMsg = `Error: ${error.message}`
       setOutput(errorMsg)
       onContentChange(cell.id, prompt, errorMsg)
       await updateCell(cell.id, { content: prompt, output: errorMsg, language: model })
     } finally {
-      setIsRunning(false)
+      setIsGenerating(false)
     }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Shift+Enter to run (like Jupyter)
     if (e.key === 'Enter' && e.shiftKey) {
       e.preventDefault()
-      handleRun()
+      handleGenerate()
     }
   }
 
@@ -139,12 +140,12 @@ function AICellComponent({ cell, tabId, notebookId, isSelected, onSelect, onCell
   }
 
   const handleInsertBefore = async () => {
-    const newCell = await insertCellAt(tabId, notebookId, 'ai', cell.order)
+    const newCell = await insertCellAt(tabId, notebookId, 'ai-image', cell.order)
     onCellsChanged(newCell.id)
   }
 
   const handleInsertAfter = async () => {
-    const newCell = await insertCellAt(tabId, notebookId, 'ai', cell.order + 1)
+    const newCell = await insertCellAt(tabId, notebookId, 'ai-image', cell.order + 1)
     onCellsChanged(newCell.id)
   }
 
@@ -163,6 +164,9 @@ function AICellComponent({ cell, tabId, notebookId, isSelected, onSelect, onCell
     opacity: isDragging ? 0.5 : 1,
   }
 
+  const isError = output.startsWith('Error:')
+  const isGeneratingText = output === 'Generating image...'
+
   return (
     <div
       ref={setNodeRef}
@@ -179,7 +183,7 @@ function AICellComponent({ cell, tabId, notebookId, isSelected, onSelect, onCell
       {/* Execution Number */}
       <div className="w-12 flex-shrink-0 pt-3 pr-2 text-right">
         <span className="text-xs text-purple-600 dark:text-purple-400 font-mono">
-          AI[{execNumber}]
+          [{execNumber}]
         </span>
       </div>
 
@@ -193,7 +197,7 @@ function AICellComponent({ cell, tabId, notebookId, isSelected, onSelect, onCell
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {AI_MODELS.map(m => (
+                {AI_IMAGE_MODELS.map(m => (
                   <SelectItem key={m.value} value={m.value}>
                     {m.label}
                   </SelectItem>
@@ -202,19 +206,19 @@ function AICellComponent({ cell, tabId, notebookId, isSelected, onSelect, onCell
             </Select>
             <Button
               size="sm"
-              onClick={handleRun}
-              disabled={isRunning || !prompt.trim()}
+              onClick={handleGenerate}
+              disabled={isGenerating || !prompt.trim()}
               className="h-7 bg-purple-600 hover:bg-purple-700 text-white"
             >
-              {isRunning ? (
+              {isGenerating ? (
                 <>
                   <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  Running...
+                  Generating...
                 </>
               ) : (
                 <>
-                  <Sparkles className="h-3 w-3 mr-1" />
-                  Run AI
+                  <ImageIcon className="h-3 w-3 mr-1" />
+                  Generate Image
                 </>
               )}
             </Button>
@@ -226,12 +230,12 @@ function AICellComponent({ cell, tabId, notebookId, isSelected, onSelect, onCell
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
             className="min-h-[80px] font-sans text-sm border-purple-200 dark:border-purple-800 w-full px-4 py-3"
-            placeholder="Ask the AI anything... (Shift+Enter to run)"
+            placeholder="Describe the image you want to generate... (Shift+Enter to generate)"
             autoFocus={isSelected}
           />
         </div>
 
-        {/* Right-side cell actions - Only visible when selected */}
+        {/* Right-side cell actions */}
         <div className={`absolute top-3 right-2 flex flex-row gap-1 ${isSelected ? 'opacity-100' : 'opacity-0'}`}>
           <Button
             size="sm"
@@ -278,20 +282,32 @@ function AICellComponent({ cell, tabId, notebookId, isSelected, onSelect, onCell
           </Button>
         </div>
 
-        {/* AI Output */}
-        {output && (
-          <div className="mt-2 flex">
-            <div className="w-12 flex-shrink-0 pt-3 pr-2 text-right">
-              <span className="text-xs text-purple-600 dark:text-purple-400 font-mono">
-                AI[{execNumber}]
-              </span>
+        {/* Image Output - No indentation */}
+        {output && !isGeneratingText && (
+          <div className="mt-2">
+            <div className="border border-purple-200 dark:border-purple-800 rounded p-4 bg-purple-50/50 dark:bg-purple-950/20">
+              {isError ? (
+                <p className="text-red-600 dark:text-red-400 text-sm">{output}</p>
+              ) : (
+                <img
+                  src={output}
+                  alt={prompt}
+                  className="max-w-full h-auto rounded"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement
+                    target.style.display = 'none'
+                    target.parentElement!.innerHTML = `<p class="text-red-600 dark:text-red-400 text-sm">Failed to load image</p>`
+                  }}
+                />
+              )}
             </div>
-            <div className="flex-1 border border-purple-200 dark:border-purple-800 rounded p-4 bg-purple-50/50 dark:bg-purple-950/20">
-              <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {output}
-                </ReactMarkdown>
-              </div>
+          </div>
+        )}
+
+        {isGeneratingText && (
+          <div className="mt-2">
+            <div className="border border-purple-200 dark:border-purple-800 rounded p-4 bg-purple-50/50 dark:bg-purple-950/20">
+              <p className="text-purple-600 dark:text-purple-400 text-sm animate-pulse">{output}</p>
             </div>
           </div>
         )}
@@ -300,5 +316,4 @@ function AICellComponent({ cell, tabId, notebookId, isSelected, onSelect, onCell
   )
 }
 
-// Export memoized version to prevent unnecessary re-renders
-export const AICell = memo(AICellComponent)
+export const AIImageCell = memo(AIImageCellComponent)
