@@ -6,6 +6,7 @@ import { Button } from './ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { CodeCell } from './code-cell'
 import { MarkdownCell } from './markdown-cell'
+import { AICell } from './ai-cell'
 import { Plus, Play, Square, RotateCw, ChevronUp, ChevronDown, Save } from 'lucide-react'
 import { createCell, updateCell, reorderCells, changeCellType } from '@/lib/actions/notebooks'
 import { DragEndEvent } from '@dnd-kit/core'
@@ -86,7 +87,7 @@ export function NotebookEditor({
   const cells = tabCells[activeTab?.id || ''] || []
   const selectedCell = cells.find(c => c.id === selectedCellId)
 
-  const handleAddCell = async (type: 'code' | 'markdown') => {
+  const handleAddCell = async (type: 'code' | 'markdown' | 'ai') => {
     if (!currentTab) return
     const newOrder = cells.length
     const newCell = await createCell(currentTab.id, notebook.id, type, newOrder)
@@ -171,7 +172,7 @@ export function NotebookEditor({
     }
   }
 
-  const handleChangeCellType = async (newType: 'code' | 'markdown') => {
+  const handleChangeCellType = async (newType: 'code' | 'markdown' | 'ai') => {
     if (!currentTab || !selectedCellId || !selectedCell) return
     if (selectedCell.type === newType) return // Already that type
 
@@ -183,7 +184,12 @@ export function NotebookEditor({
       ...prev,
       [currentTab.id]: (prev[currentTab.id] || []).map(c =>
         c.id === selectedCellId
-          ? { ...c, type: newType, language: newType === 'code' ? 'javascript' : 'markdown', output: newType === 'markdown' ? null : c.output }
+          ? {
+              ...c,
+              type: newType,
+              language: newType === 'code' ? 'javascript' : newType === 'ai' ? 'claude-3.5-sonnet' : 'markdown',
+              output: newType === 'markdown' ? null : c.output
+            }
           : c
       )
     }))
@@ -331,7 +337,7 @@ export function NotebookEditor({
           <div className="h-6 w-px bg-neutral-200 dark:border-neutral-800 mx-1" />
           <Select
             value={selectedCell?.type || 'code'}
-            onValueChange={(value) => handleChangeCellType(value as 'code' | 'markdown')}
+            onValueChange={(value) => handleChangeCellType(value as 'code' | 'markdown' | 'ai')}
             disabled={!selectedCell}
           >
             <SelectTrigger className="w-24 h-7 text-xs">
@@ -340,6 +346,7 @@ export function NotebookEditor({
             <SelectContent>
               <SelectItem value="code">Code</SelectItem>
               <SelectItem value="markdown">Markdown</SelectItem>
+              <SelectItem value="ai">AI</SelectItem>
             </SelectContent>
           </Select>
           <MarkdownTipsPopover />
@@ -358,6 +365,17 @@ export function NotebookEditor({
               <div key={cell.id}>
                 {cell.type === 'code' ? (
                   <CodeCell
+                    cell={cell}
+                    tabId={currentTab?.id || ''}
+                    notebookId={notebook.id}
+                    isSelected={selectedCellId === cell.id}
+                    onSelect={() => setSelectedCellId(cell.id)}
+                    onCellDeleted={handleCellDeleted}
+                    onCellsChanged={refreshCells}
+                    onContentChange={handleCellContentChange}
+                  />
+                ) : cell.type === 'ai' ? (
+                  <AICell
                     cell={cell}
                     tabId={currentTab?.id || ''}
                     notebookId={notebook.id}

@@ -3,7 +3,7 @@
 import { useState, useEffect, memo } from 'react'
 import { Button } from './ui/button'
 import { Textarea } from './ui/textarea'
-import { Trash2, Edit, Check, GripVertical, Copy, ArrowUp, ArrowDown } from 'lucide-react'
+import { Trash2, Edit, Check, GripVertical, Copy, ArrowUp, ArrowDown, Image } from 'lucide-react'
 import { updateCell, deleteCell, insertCellAt, duplicateCell } from '@/lib/actions/notebooks'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -28,6 +28,7 @@ interface MarkdownCellProps {
 function MarkdownCellComponent({ cell, tabId, notebookId, isSelected, onSelect, onCellDeleted, onCellsChanged, onContentChange }: MarkdownCellProps) {
   const [content, setContent] = useState(cell.content)
   const [isEditing, setIsEditing] = useState(false)
+  const [isDraggingOver, setIsDraggingOver] = useState(false)
 
   // Setup drag and drop
   const {
@@ -81,6 +82,54 @@ function MarkdownCellComponent({ cell, tabId, notebookId, isSelected, onSelect, 
       e.preventDefault()
       handleSave()
     }
+  }
+
+  const processImageFile = (file: File) => {
+    // Check if it's an image
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file')
+      return
+    }
+
+    // Convert to base64
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string
+      // Insert markdown image syntax at cursor or end
+      const imageMd = `![${file.name}](${base64})\n`
+      setContent(prev => prev + imageMd)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) processImageFile(file)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (isEditing) {
+      setIsDraggingOver(true)
+    }
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDraggingOver(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDraggingOver(false)
+
+    if (!isEditing) return
+
+    const file = e.dataTransfer.files[0]
+    if (file) processImageFile(file)
   }
 
   const handleDelete = async () => {
@@ -144,8 +193,13 @@ function MarkdownCellComponent({ cell, tabId, notebookId, isSelected, onSelect, 
             onChange={(e) => handleContentChange(e.target.value)}
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
-            className="min-h-[80px] font-mono text-sm border-neutral-200 dark:border-neutral-800 w-full px-4 py-3"
-            placeholder="# Write markdown here... (Shift+Enter to render)"
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`min-h-[80px] font-mono text-sm border-neutral-200 dark:border-neutral-800 w-full px-4 py-3 ${
+              isDraggingOver ? 'border-blue-500 bg-blue-50 dark:bg-blue-950' : ''
+            }`}
+            placeholder="# Write markdown here... (Shift+Enter to render, drag images to upload)"
             autoFocus
           />
         ) : (
@@ -168,15 +222,33 @@ function MarkdownCellComponent({ cell, tabId, notebookId, isSelected, onSelect, 
         {/* Right-side cell actions - Only visible when selected */}
         <div className={`absolute top-3 right-2 flex flex-row gap-1 ${isSelected ? 'opacity-100' : 'opacity-0'}`}>
           {isEditing && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handleSave}
-              title="Save"
-              className="h-6 w-6 p-0"
-            >
-              <Check className="h-3 w-3" />
-            </Button>
+            <>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleSave}
+                title="Save"
+                className="h-6 w-6 p-0"
+              >
+                <Check className="h-3 w-3" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => document.getElementById(`image-upload-${cell.id}`)?.click()}
+                title="Upload image"
+                className="h-6 w-6 p-0"
+              >
+                <Image className="h-3 w-3" />
+              </Button>
+              <input
+                id={`image-upload-${cell.id}`}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+            </>
           )}
           <Button
             size="sm"
