@@ -186,7 +186,8 @@ export async function createCell(tabId: string, notebookId: string, type: 'code'
       order
     }
   })
-  revalidatePath(`/notebooks/${notebookId}`)
+  // Don't revalidate here - parent does optimistic update
+  // revalidatePath causes refresh that wipes debounced content
   return cell
 }
 
@@ -252,7 +253,8 @@ export async function duplicateCell(cellId: string, notebookId: string) {
     }
   })
 
-  revalidatePath(`/notebooks/${notebookId}`)
+  // Don't revalidate here - component handles refresh via router.refresh()
+  // revalidatePath causes double refresh that wipes debounced content
   return newCell
 }
 
@@ -286,7 +288,8 @@ export async function insertCellAt(tabId: string, notebookId: string, type: 'cod
     }
   })
 
-  revalidatePath(`/notebooks/${notebookId}`)
+  // Don't revalidate here - component handles refresh via router.refresh()
+  // revalidatePath causes double refresh that wipes debounced content
   return cell
 }
 
