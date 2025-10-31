@@ -4,7 +4,7 @@ import { useState, useEffect, memo } from 'react'
 import Editor from '@monaco-editor/react'
 import { Button } from './ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
-import { Play, Trash2, Bot, GripVertical, Copy, ArrowUp, ArrowDown } from 'lucide-react'
+import { Play, Trash2, Bot, GripVertical, Copy, ArrowUp, ArrowDown, ChevronDown, ChevronRight } from 'lucide-react'
 import { updateCell, deleteCell, insertCellAt, duplicateCell } from '@/lib/actions/notebooks'
 import { useTheme } from 'next-themes'
 import { ChartRenderer } from './chart-renderer'
@@ -42,6 +42,7 @@ function CodeCellComponent({ cell, tabId, notebookId, isSelected, onSelect, onCe
   const [isRunning, setIsRunning] = useState(false)
   const [isAskingAI, setIsAskingAI] = useState(false)
   const [editorRef, setEditorRef] = useState<any>(null)
+  const [isOutputCollapsed, setIsOutputCollapsed] = useState(false)
   const { theme } = useTheme()
 
   // Setup drag and drop
@@ -357,9 +358,27 @@ function CodeCellComponent({ cell, tabId, notebookId, isSelected, onSelect, onCe
         {/* Output - No indentation */}
         {output && (
           <div className="mt-2">
-            <div className="border border-neutral-200 dark:border-neutral-800 rounded p-3 bg-neutral-50 dark:bg-neutral-900/30">
-              <ChartRenderer output={output} />
+            <div className="flex items-center gap-2 mb-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setIsOutputCollapsed(!isOutputCollapsed)}
+                className="h-5 w-5 p-0"
+                title={isOutputCollapsed ? "Expand output" : "Collapse output"}
+              >
+                {isOutputCollapsed ? (
+                  <ChevronRight className="h-3 w-3" />
+                ) : (
+                  <ChevronDown className="h-3 w-3" />
+                )}
+              </Button>
+              <span className="text-xs text-neutral-500 dark:text-neutral-400">Output</span>
             </div>
+            {!isOutputCollapsed && (
+              <div className="border border-neutral-200 dark:border-neutral-800 rounded p-3 bg-neutral-50 dark:bg-neutral-900/30">
+                <ChartRenderer output={output} />
+              </div>
+            )}
           </div>
         )}
       </div>

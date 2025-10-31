@@ -4,7 +4,7 @@ import { useState, useEffect, memo } from 'react'
 import { Button } from './ui/button'
 import { Textarea } from './ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
-import { Trash2, GripVertical, Copy, ArrowUp, ArrowDown, Sparkles, Loader2 } from 'lucide-react'
+import { Trash2, GripVertical, Copy, ArrowUp, ArrowDown, Sparkles, Loader2, ChevronDown, ChevronRight } from 'lucide-react'
 import { updateCell, deleteCell, insertCellAt, duplicateCell } from '@/lib/actions/notebooks'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -44,6 +44,7 @@ function AITextCellComponent({ cell, tabId, notebookId, isSelected, onSelect, on
   const [output, setOutput] = useState(cell.output || '')
   const [model, setModel] = useState(cell.language || 'gpt-4o')
   const [isRunning, setIsRunning] = useState(false)
+  const [isOutputCollapsed, setIsOutputCollapsed] = useState(false)
 
   // Setup drag and drop
   const {
@@ -203,6 +204,21 @@ function AITextCellComponent({ cell, tabId, notebookId, isSelected, onSelect, on
             </SelectContent>
           </Select>
           <div className="h-5 w-px bg-neutral-200 dark:bg-neutral-700" />
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleRun}
+            disabled={isRunning || !prompt.trim()}
+            className="h-7 w-7 p-0"
+            title="Run (Shift+Enter)"
+          >
+            {isRunning ? (
+              <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+            ) : (
+              <Sparkles className="h-4 w-4 text-blue-600" />
+            )}
+          </Button>
+          <div className="h-5 w-px bg-neutral-200 dark:bg-neutral-700" />
           <input
             type="text"
             value={prompt}
@@ -213,27 +229,9 @@ function AITextCellComponent({ cell, tabId, notebookId, isSelected, onSelect, on
             placeholder="Ask the AI anything... (Shift+Enter to run)"
             autoFocus={isSelected}
           />
-          <Button
-            size="sm"
-            onClick={handleRun}
-            disabled={isRunning || !prompt.trim()}
-            className="h-7 bg-blue-600 hover:bg-blue-700 text-white px-3"
-          >
-            {isRunning ? (
-              <>
-                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                Running...
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-3 w-3 mr-1" />
-                Run
-              </>
-            )}
-          </Button>
         </div>
 
-        {/* Right-side cell actions */}
+        {/* Cell actions */}
         <div className={`absolute top-3 right-2 flex flex-row gap-1 ${isSelected ? 'opacity-100' : 'opacity-0'}`}>
           <Button
             size="sm"
@@ -280,16 +278,34 @@ function AITextCellComponent({ cell, tabId, notebookId, isSelected, onSelect, on
           </Button>
         </div>
 
-        {/* AI Output - Reduced indentation */}
+        {/* AI Output */}
         {output && (
           <div className="mt-2">
-            <div className="border border-blue-200 dark:border-blue-800 rounded p-4 bg-blue-50/50 dark:bg-blue-950/20">
-              <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {output}
-                </ReactMarkdown>
-              </div>
+            <div className="flex items-center gap-2 mb-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setIsOutputCollapsed(!isOutputCollapsed)}
+                className="h-5 w-5 p-0"
+                title={isOutputCollapsed ? "Expand output" : "Collapse output"}
+              >
+                {isOutputCollapsed ? (
+                  <ChevronRight className="h-3 w-3" />
+                ) : (
+                  <ChevronDown className="h-3 w-3" />
+                )}
+              </Button>
+              <span className="text-xs text-blue-600 dark:text-blue-400">Output</span>
             </div>
+            {!isOutputCollapsed && (
+              <div className="border border-blue-200 dark:border-blue-800 rounded p-4 bg-blue-50/50 dark:bg-blue-950/20">
+                <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {output}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

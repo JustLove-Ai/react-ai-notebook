@@ -45,11 +45,12 @@ function MarkdownCellComponent({ cell, tabId, notebookId, isSelected, onSelect, 
     setContent(cell.content)
   }, [cell.content])
 
-  // Debounce content sync to parent to prevent focus issues
+  // Debounce content sync to parent and database
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
       if (content !== cell.content) {
         onContentChange(cell.id, content)
+        await updateCell(cell.id, { content })
       }
     }, 300)
 

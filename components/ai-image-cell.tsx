@@ -4,7 +4,7 @@ import { useState, useEffect, memo } from 'react'
 import { Button } from './ui/button'
 import { Textarea } from './ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
-import { Trash2, GripVertical, Copy, ArrowUp, ArrowDown, Image as ImageIcon, Loader2, Upload } from 'lucide-react'
+import { Trash2, GripVertical, Copy, ArrowUp, ArrowDown, Image as ImageIcon, Loader2, Upload, ChevronDown, ChevronRight } from 'lucide-react'
 import { updateCell, deleteCell, insertCellAt, duplicateCell } from '@/lib/actions/notebooks'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -39,6 +39,7 @@ function AIImageCellComponent({ cell, tabId, notebookId, isSelected, onSelect, o
   const [model, setModel] = useState(cell.language || 'gpt-image-1')
   const [isGenerating, setIsGenerating] = useState(false)
   const [showLightbox, setShowLightbox] = useState(false)
+  const [isOutputCollapsed, setIsOutputCollapsed] = useState(false)
 
   // Setup drag and drop
   const {
@@ -226,6 +227,38 @@ function AIImageCellComponent({ cell, tabId, notebookId, isSelected, onSelect, o
             </SelectContent>
           </Select>
           <div className="h-5 w-px bg-neutral-200 dark:bg-neutral-700" />
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleGenerate}
+            disabled={isGenerating || !prompt.trim()}
+            className="h-7 w-7 p-0"
+            title="Generate image (Shift+Enter)"
+          >
+            {isGenerating ? (
+              <Loader2 className="h-4 w-4 animate-spin text-purple-600" />
+            ) : (
+              <ImageIcon className="h-4 w-4 text-purple-600" />
+            )}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => document.getElementById(`image-upload-${cell.id}`)?.click()}
+            disabled={isGenerating}
+            className="h-7 w-7 p-0"
+            title="Upload image"
+          >
+            <Upload className="h-4 w-4 text-purple-600" />
+          </Button>
+          <input
+            id={`image-upload-${cell.id}`}
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            className="hidden"
+          />
+          <div className="h-5 w-px bg-neutral-200 dark:bg-neutral-700" />
           <input
             type="text"
             value={prompt}
@@ -235,41 +268,6 @@ function AIImageCellComponent({ cell, tabId, notebookId, isSelected, onSelect, o
             className="flex-1 bg-transparent outline-none text-sm font-sans"
             placeholder="Describe the image you want to generate... (Shift+Enter to generate)"
             autoFocus={isSelected}
-          />
-          <Button
-            size="sm"
-            onClick={handleGenerate}
-            disabled={isGenerating || !prompt.trim()}
-            className="h-7 bg-purple-600 hover:bg-purple-700 text-white px-3"
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <ImageIcon className="h-3 w-3 mr-1" />
-                Generate
-              </>
-            )}
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => document.getElementById(`image-upload-${cell.id}`)?.click()}
-            disabled={isGenerating}
-            className="h-7 px-3"
-          >
-            <Upload className="h-3 w-3 mr-1" />
-            Upload
-          </Button>
-          <input
-            id={`image-upload-${cell.id}`}
-            type="file"
-            accept="image/*"
-            onChange={handleImageUpload}
-            className="hidden"
           />
         </div>
 
@@ -323,23 +321,41 @@ function AIImageCellComponent({ cell, tabId, notebookId, isSelected, onSelect, o
         {/* Image Output - Smaller with lightbox */}
         {output && !isGeneratingText && (
           <div className="mt-2">
-            <div className="border border-purple-200 dark:border-purple-800 rounded p-4 bg-purple-50/50 dark:bg-purple-950/20">
-              {isError ? (
-                <p className="text-red-600 dark:text-red-400 text-sm">{output}</p>
-              ) : (
-                <img
-                  src={output}
-                  alt={prompt}
-                  className="max-w-md h-auto rounded cursor-pointer hover:opacity-90 transition-opacity"
-                  onClick={() => setShowLightbox(true)}
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement
-                    target.style.display = 'none'
-                    target.parentElement!.innerHTML = `<p class="text-red-600 dark:text-red-400 text-sm">Failed to load image</p>`
-                  }}
-                />
-              )}
+            <div className="flex items-center gap-2 mb-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setIsOutputCollapsed(!isOutputCollapsed)}
+                className="h-5 w-5 p-0"
+                title={isOutputCollapsed ? "Expand output" : "Collapse output"}
+              >
+                {isOutputCollapsed ? (
+                  <ChevronRight className="h-3 w-3" />
+                ) : (
+                  <ChevronDown className="h-3 w-3" />
+                )}
+              </Button>
+              <span className="text-xs text-purple-600 dark:text-purple-400">Output</span>
             </div>
+            {!isOutputCollapsed && (
+              <div className="border border-purple-200 dark:border-purple-800 rounded p-4 bg-purple-50/50 dark:bg-purple-950/20">
+                {isError ? (
+                  <p className="text-red-600 dark:text-red-400 text-sm">{output}</p>
+                ) : (
+                  <img
+                    src={output}
+                    alt={prompt}
+                    className="max-w-md h-auto rounded cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => setShowLightbox(true)}
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement
+                      target.style.display = 'none'
+                      target.parentElement!.innerHTML = `<p class="text-red-600 dark:text-red-400 text-sm">Failed to load image</p>`
+                    }}
+                  />
+                )}
+              </div>
+            )}
           </div>
         )}
 
